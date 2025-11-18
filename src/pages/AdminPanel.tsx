@@ -3,7 +3,7 @@
 import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { UserMenu } from '@/components/auth/UserMenu';
+import UserMenu from '@/components/auth/UserMenu';
 import { authService } from '@/lib/auth';
 import { MadeWithDyad } from '@/components/made-with-dyad';
 import { Shield, Users, Settings, AlertTriangle } from 'lucide-react';

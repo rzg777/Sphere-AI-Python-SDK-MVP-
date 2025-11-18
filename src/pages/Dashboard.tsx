@@ -3,7 +3,7 @@
 import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { UserMenu } from '@/components/auth/UserMenu';
+import UserMenu from '@/components/auth/UserMenu';
 import { authService } from '@/lib/auth';
 import { MadeWithDyad } from '@/components/made-with-dyad';
 import { Shield, Users, Settings, BarChart3 } from 'lucide-react';
@@ -109,15 +109,13 @@ const Dashboard: React.FC = () => {
               <CardContent>
                 <div className="space-y-4">
                   <p className="text-sm text-muted-foreground">
-                    YouI'll continue with the complete Dashboard component and update the main application to include the authentication system.
-
-<dyad-write path="src/pages/Dashboard.tsx" description="Protected dashboard page - continued">
-                  have access to administrative features.
-                </p>
-                <div className="flex space-x-4">
-                  <Button>Manage Users</Button>
-                  <Button variant="outline">System Settings</Button>
-                  <Button variant="outline">View Logs</Button>
+                    You have access to administrative features.
+                  </p>
+                  <div className="flex space-x-4">
+                    <Button>Manage Users</Button>
+                    <Button variant="outline">System Settings</Button>
+                    <Button variant="outline">View Logs</Button>
+                  </div>
                 </div>
               </CardContent>
             </Card>
