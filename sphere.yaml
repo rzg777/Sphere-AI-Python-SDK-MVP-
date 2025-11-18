@@ -1,0 +1,71 @@
+# Sphere AI Policy Configuration
+# Version: 1.0
+# Compliance Standard: ISO 42001
+
+version: "1.0"
+compliance_standard: "ISO_42001"
+
+security_rules:
+  # Rule 1: Tool Blocking (Agentic Security)
+  - id: "block_destructive_tools"
+    type: "tool_filter"
+    action: "block"
+    blocked_tools: 
+      - "delete_user"
+      - "drop_database"
+      - "execute_shell"
+      - "format_disk"
+      - "shutdown_system"
+    compliance_tag: "ISO_42001_A.9.4"
+    description: "Block dangerous system operations and destructive commands"
+
+  # Rule 2: PII Protection (Data Security)
+  - id: "mask_credit_cards"
+    type: "regex_mask"
+    pattern: "\\b(?:\\d[ -]*?){13,16}\\b"
+    action: "redact"
+    replacement: "[CREDIT_CARD_REDACTED]"
+    compliance_tag: "GDPR_Art_32"
+    description: "Mask credit card numbers in all messages"
+
+  # Rule 3: Authentication Data Protection
+  - id: "mask_api_keys"
+    type: "regex_mask"
+    pattern: "(?i)(?:api[_-]?key|secret[_-]?key)[=: ]\\s*([a-zA-Z0-9_\\-]{20,})"
+    action: "redact"
+    replacement: "[API_KEY_REDACTED]"
+    compliance_tag: "ISO_27001_A.9.4"
+    description: "Mask API keys and secrets in content"
+
+  # Rule 4: Content Filtering
+  - id: "block_sensitive_operations"
+    type: "content_filter"
+    action: "block"
+    blocked_patterns:
+      - "hack into"
+      - "bypass security"
+      - "unauthorized access"
+      - "system vulnerability"
+    compliance_tag: "ISO_42001_A.6.2"
+    description: "Block content related to security bypass and unauthorized access"
+
+  # Rule 5: Data Export Prevention
+  - id: "block_data_export_tools"
+    type: "tool_filter"
+    action: "block"
+    blocked_tools:
+      - "export_database"
+      - "download_all_data"
+      - "bulk_export"
+      - "transfer_to_external"
+    compliance_tag: "GDPR_Art_44"
+    description: "Block tools that could export large amounts of data"
+
+# Additional configuration options (future use)
+# logging:
+#   level: "AUDIT"  # AUDIT, ERROR, DEBUG
+#   format: "NDJSON"
+# 
+# performance:
+#   max_evaluation_time_ms: 50
+#   cache_compiled_patterns: true

@@ -39,6 +39,7 @@ dev = [
     "black>=23.0.0",
     "isort>=5.12.0",
     "mypy>=1.0.0",
+    "types-PyYAML>=6.0.0",
 ]
 
 [project.urls]
@@ -61,5 +62,20 @@ multi_line_output = 3
 [tool.mypy]
 python_version = "3.8"
 warn_return_any = true
-warn_unused_configs = true
+warn_unused_configs =I'll complete the remaining implementation files to finish the Sphere AI SDK:
+
+<dyad-write path="pyproject.toml" description="Complete Python package configuration - continued">
+    true
 disallow_untyped_defs = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-v --strict-markers --strict-config"
+markers = [
+    "integration: marks tests as integration tests",
+    "slow: marks tests as slow running",
+]
+
+[tool.coverage.run]
+source = ["sphere_ai"]
+omit = ["*/tests/*", "*/test_*"]
