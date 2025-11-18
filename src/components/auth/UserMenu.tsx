@@ -10,18 +10,39 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { User, LogOut, Settings } from 'lucide-react';
+import { User, LogOut, Settings, RefreshCcw } from 'lucide-react';
 import { authService } from '@/lib/auth';
-import { showSuccess } from '@/utils/toast';
+import { showError, showSuccess } from '@/utils/toast';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
 
 const UserMenu: React.FC = () => {
-  const user = authService.getCurrentUser();
+  const { user, loading, refresh } = useCurrentUser();
 
-  const handleLogout = () => {
-    authService.logout();
+  const handleLogout = async () => {
+    await authService.logout();
     showSuccess('Logged out successfully');
     window.location.href = '/login';
   };
+
+  const handleRefreshSession = async () => {
+    try {
+      await authService.refreshTokens();
+      await refresh();
+      showSuccess('Session refreshed');
+    } catch (error) {
+      showError('Session refresh failed. Please sign in again.');
+      await authService.logout();
+      window.location.href = '/login';
+    }
+  };
+
+  if (loading) {
+    return (
+      <Button variant="ghost" size="sm" className="relative h-8 w-8 rounded-full" disabled>
+        <User className="h-4 w-4 animate-pulse" />
+      </Button>
+    );
+  }
 
   if (!user) {
     return null;
@@ -50,6 +71,10 @@ const UserMenu: React.FC = () => {
         <DropdownMenuItem>
           <Settings className="mr-2 h-4 w-4" />
           <span>Settings</span>
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={handleRefreshSession}>
+          <RefreshCcw className="mr-2 h-4 w-4" />
+          <span>Refresh session</span>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={handleLogout}>

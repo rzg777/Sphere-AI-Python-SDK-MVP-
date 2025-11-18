@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
-import { authService } from '@/lib/auth';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -11,13 +11,21 @@ interface ProtectedRouteProps {
 
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requiredRole }) => {
   const location = useLocation();
-  
-  if (!authService.isAuthenticated()) {
-    // Redirect to login page with return url
+  const { user, loading } = useCurrentUser();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p className="text-muted-foreground">Validating your session...</p>
+      </div>
+    );
+  }
+
+  if (!user) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  if (requiredRole && !authService.hasRole(requiredRole)) {
+  if (requiredRole && user.role !== requiredRole) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">

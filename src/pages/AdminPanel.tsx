@@ -1,15 +1,65 @@
 "use client";
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import UserMenu from '@/components/auth/UserMenu';
-import { authService } from '@/lib/auth';
+import { authService, AdminSummary } from '@/lib/auth';
 import { MadeWithDyad } from '@/components/made-with-dyad';
 import { Shield, Users, Settings, AlertTriangle } from 'lucide-react';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
 
 const AdminPanel: React.FC = () => {
-  const user = authService.getCurrentUser();
+  const { user, loading } = useCurrentUser();
+  const [summary, setSummary] = useState<AdminSummary | null>(null);
+  const [summaryLoading, setSummaryLoading] = useState(true);
+  const [summaryError, setSummaryError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      if (!user) {
+        setSummary(null);
+        setSummaryError('No authenticated admin session.');
+        setSummaryLoading(false);
+        return;
+      }
+      try {
+        const data = await authService.getAdminSummary();
+        if (!active) {
+          return;
+        }
+        if (!data) {
+          setSummary(null);
+          setSummaryError('Server rejected admin access for this user.');
+        } else {
+          setSummary(data);
+          setSummaryError(null);
+        }
+      } catch (error) {
+        if (!active) {
+          return;
+        }
+        setSummary(null);
+        setSummaryError('Unable to load admin metrics.');
+      } finally {
+        if (active) {
+          setSummaryLoading(false);
+        }
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, [user]);
+
+  if (loading || summaryLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p className="text-muted-foreground">Loading admin console...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-red-50">
@@ -52,8 +102,11 @@ const AdminPanel: React.FC = () => {
               Administrative Dashboard
             </h2>
             <p className="text-gray-600">
-              Logged in as <span className="font-medium">{user?.name}</span> with <span className="font-medium capitalize">{user?.role}</span> privileges
+              Logged in as <span className="font-medium">{user?.name ?? 'unknown'}</span> with <span className="font-medium capitalize">{user?.role ?? 'unknown'}</span> privileges
             </p>
+            {summaryError && (
+              <p className="text-sm text-red-600 mt-2">{summaryError}</p>
+            )}
           </div>
 
           {/* Admin Controls Grid */}
@@ -127,19 +180,19 @@ const AdminPanel: React.FC = () => {
             <CardContent>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="text-center p-4 bg-green-50 rounded-lg">
-                  <div className="text-2xl font-bold text-green-600">99.9%</div>
+                  <div className="text-2xl font-bold text-green-600">{summary?.uptime ?? 'N/A'}</div>
                   <div className="text-sm text-green-800">Uptime</div>
                 </div>
                 <div className="text-center p-4 bg-blue-50 rounded-lg">
-                  <div className="text-2xl font-bold text-blue-600">1,234</div>
+                  <div className="text-2xl font-bold text-blue-600">{summary?.activeUsers ?? 0}</div>
                   <div className="text-sm text-blue-800">Active Users</div>
                 </div>
                 <div className="text-center p-4 bg-yellow-50 rounded-lg">
-                  <div className="text-2xl font-bold text-yellow-600">12</div>
+                  <div className="text-2xl font-bold text-yellow-600">{summary?.pendingTasks ?? 0}</div>
                   <div className="text-sm text-yellow-800">Pending Tasks</div>
                 </div>
                 <div className="text-center p-4 bg-purple-50 rounded-lg">
-                  <div className="text-2xl font-bold text-purple-600">0</div>
+                  <div className="text-2xl font-bold text-purple-600">{summary?.criticalIssues ?? 0}</div>
                   <div className="text-sm text-purple-800">Critical Issues</div>
                 </div>
               </div>
@@ -153,3 +206,4 @@ const AdminPanel: React.FC = () => {
 };
 
 export default AdminPanel;
+

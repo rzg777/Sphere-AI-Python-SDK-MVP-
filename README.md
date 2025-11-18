@@ -255,3 +255,26 @@ isort sphere_ai tests
 ## License
 
 Apache 2.0
+## Demo authentication for the web UI
+
+The repository also ships with a Vite-based demo dashboard that exercises the SDK. The demo login flow now mirrors a real deployment:
+
+- Credentials are validated by `demoAuthServer` in `src/lib/demoAuthServer.ts`, which signs access and refresh tokens with an HMAC secret before issuing them.
+- Refresh tokens are kept in browser memory only, so reloading the page requires a fresh login (production deployments should replace this with httpOnly cookies).
+- Server helpers verify every token before returning profile data or exposing admin-only information.
+
+### Fixture credentials
+
+| Role  | Email             | Password    |
+|-------|-------------------|-------------|
+| User  | `user@example.com`  | `password123` |
+| Admin | `admin@example.com` | `admin123`    |
+
+These accounts are fixtures that exist purely for the demo UI—you should never reuse them in production.
+
+### Testing the secure login flow
+
+1. Install dependencies with `pnpm install`.
+2. Run `pnpm dev` and open the printed URL.
+3. Sign in with one of the fixture accounts listed above.
+4. Use the “Refresh session” action in the avatar menu to exercise the refresh-token endpoint. Admin widgets only appear after the backend verifies your access token, so non-admin logins will never see sensitive data even if the UI route loads.

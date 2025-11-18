@@ -43,7 +43,8 @@ const SecureLoginForm: React.FC<SecureLoginFormProps> = ({ onSuccess, onSwitchTo
       <CardHeader>
         <CardTitle className="text-2xl">Secure Login</CardTitle>
         <CardDescription>
-          Enter your credentials to access your account
+          Credentials are verified server-side and demo accounts are
+          read-only fixtures.
         </CardDescription>
       </CardHeader>
       <CardContent>

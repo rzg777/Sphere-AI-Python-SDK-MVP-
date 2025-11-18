@@ -1,15 +1,46 @@
 "use client";
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import UserMenu from '@/components/auth/UserMenu';
-import { authService } from '@/lib/auth';
+import { authService, AdminSummary } from '@/lib/auth';
 import { MadeWithDyad } from '@/components/made-with-dyad';
 import { Shield, Users, Settings, BarChart3 } from 'lucide-react';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
 
 const Dashboard: React.FC = () => {
-  const user = authService.getCurrentUser();
+  const { user, loading } = useCurrentUser();
+  const [adminSummary, setAdminSummary] = useState<AdminSummary | null>(null);
+  const [adminChecked, setAdminChecked] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    if (!user) {
+      setAdminSummary(null);
+      setAdminChecked(true);
+      return;
+    }
+    (async () => {
+      const summary = await authService.getAdminSummary();
+      if (!active) {
+        return;
+      }
+      setAdminSummary(summary);
+      setAdminChecked(true);
+    })();
+    return () => {
+      active = false;
+    };
+  }, [user]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p className="text-muted-foreground">Loading secure dashboard...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -32,10 +63,10 @@ const Dashboard: React.FC = () => {
           {/* Welcome Section */}
           <div className="mb-8">
             <h2 className="text-3xl font-bold text-gray-900 mb-2">
-              Welcome back, {user?.name}!
+              Welcome back, {user?.name ?? 'guest'}!
             </h2>
             <p className="text-gray-600">
-              You are logged in as <span className="font-medium capitalize">{user?.role}</span>
+              You are logged in as <span className="font-medium capitalize">{user?.role ?? 'unknown'}</span>
             </p>
           </div>
 
@@ -95,7 +126,7 @@ const Dashboard: React.FC = () => {
           </div>
 
           {/* Admin Section (only visible to admins) */}
-          {user?.role === 'admin' && (
+          {adminChecked && adminSummary && (
             <Card className="mb-8">
               <CardHeader>
                 <CardTitle className="flex items-center">
@@ -109,7 +140,7 @@ const Dashboard: React.FC = () => {
               <CardContent>
                 <div className="space-y-4">
                   <p className="text-sm text-muted-foreground">
-                    You have access to administrative features.
+                    Server-verified admin session is active.
                   </p>
                   <div className="flex space-x-4">
                     <Button>Manage Users</Button>

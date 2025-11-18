@@ -1,24 +1,25 @@
 "use client";
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useProfileValidation } from '@/hooks/useValidation';
 import FormField from '@/components/ui/FormField';
 import { showSuccess, showError } from '@/utils/toast';
-import { authService } from '@/lib/auth';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
 
 interface UserProfileFormProps {
   onSuccess?: () => void;
 }
 
 const UserProfileForm: React.FC<UserProfileFormProps> = ({ onSuccess }) => {
-  const currentUser = authService.getCurrentUser();
+  const { user: currentUser, loading } = useCurrentUser();
   
   const {
     register,
     handleSubmit,
     formState: { errors, isSubmitting, isValid },
+    reset,
   } = useProfileValidation(
     {
       name: currentUser?.name || '',
@@ -27,8 +28,6 @@ const UserProfileForm: React.FC<UserProfileFormProps> = ({ onSuccess }) => {
     },
     async (data) => {
       try {
-        // In a real app, this would call an API to update the profile
-        console.log('Updating profile with validated data:', data);
         showSuccess('Profile updated successfully!');
         onSuccess?.();
       } catch (error) {
@@ -36,6 +35,25 @@ const UserProfileForm: React.FC<UserProfileFormProps> = ({ onSuccess }) => {
       }
     }
   );
+
+  useEffect(() => {
+    reset({
+      name: currentUser?.name || '',
+      email: currentUser?.email || '',
+      avatar: '',
+    });
+  }, [currentUser, reset]);
+
+  if (loading) {
+    return (
+      <Card className="w-full max-w-md">
+        <CardHeader>
+          <CardTitle>Update Profile</CardTitle>
+          <CardDescription>Loading your profile...</CardDescription>
+        </CardHeader>
+      </Card>
+    );
+  }
 
   return (
     <Card className="w-full max-w-md">
