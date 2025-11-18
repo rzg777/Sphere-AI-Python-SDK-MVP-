@@ -2,6 +2,7 @@
 
 import uuid
 import time
+from collections.abc import Iterable
 from typing import Any, Dict, List, Optional, Union, cast
 from dataclasses import dataclass
 
@@ -100,12 +101,18 @@ class SphereClient:
             final_config = merge_policies(file_config, config)
             
             # Add policy packs
+            additional_rules = []
             policy_packs = policies or []
             for pack in policy_packs:
                 if hasattr(pack, 'get_rules'):
-                    final_config.security_rules.extend(pack.get_rules())
-            
-            self.policy_engine = PolicyEngine(config=final_config)
+                    pack_rules = pack.get_rules()
+                    if isinstance(pack_rules, list):
+                        additional_rules.extend(pack_rules)
+
+            self.policy_engine = PolicyEngine(
+                config=final_config,
+                rules=additional_rules if additional_rules else None,
+            )
         
         # Initialize audit logger
         self.audit_logger = AuditLogger(enabled=enable_audit_logging)
@@ -220,7 +227,19 @@ class SphereClient:
             "completion_tokens": usage.completion_tokens if usage else 0,
         }
         
-        for violation in result.violations:
+        violations = getattr(result, "violations", [])
+        if not violations:
+            return
+
+        if isinstance(violations, Iterable) and not isinstance(violations, (str, bytes)):
+            violation_iterable = violations
+        else:
+            violation_iterable = [violations]
+
+        for violation in violation_iterable:
+            if not hasattr(violation, "rule_id"):
+                continue
+
             self.audit_logger.log_violation(
                 interaction_id=context.interaction_id,
                 model=context.model,

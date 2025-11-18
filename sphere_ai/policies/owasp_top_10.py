@@ -1,24 +1,25 @@
 """OWASP Top 10 security policy pack for web application security."""
 
-from ..engine import ToolFilterRule, ContentFilterRule
+from typing import List
+
+from ..engine import BaseRule, ContentFilterRule, ToolFilterRule
 
 
-# OWASP Top 10 Policy Pack
-owasp_top_10 = type('OWASPPolicyPack', (), {
-    'get_rules': lambda: [
+def _owasp_rules() -> List[BaseRule]:
+    return [
         ToolFilterRule(
             id="owasp_block_injection_tools",
             type="tool_filter",
-            action="block", 
+            action="block",
             blocked_tools=[
                 "execute_sql",
                 "run_shell_command",
                 "eval_code",
                 "execute_script",
-                "system_call"
+                "system_call",
             ],
             compliance_tag="OWASP_A03",
-            description="Block tools that could enable injection attacks"
+            description="Block tools that could enable injection attacks",
         ),
         ToolFilterRule(
             id="owasp_block_auth_bypass",
@@ -26,40 +27,52 @@ owasp_top_10 = type('OWASPPolicyPack', (), {
             action="block",
             blocked_tools=[
                 "bypass_authentication",
-                "elevate_privileges", 
+                "elevate_privileges",
                 "access_admin_panel",
-                "reset_password_unauthorized"
+                "reset_password_unauthorized",
             ],
             compliance_tag="OWASP_A07",
-            description="Block tools that could bypass authentication"
+            description="Block tools that could bypass authentication",
         ),
         ContentFilterRule(
             id="owasp_block_sensitive_data_exposure",
-            type="content_filter", 
+            type="content_filter",
             action="block",
             blocked_patterns=[
                 "api_key",
                 "secret_key",
                 "password",
                 "private_key",
-                "database_connection_string"
+                "database_connection_string",
             ],
             compliance_tag="OWASP_A02",
-            description="Block content containing sensitive credentials"
+            description="Block content containing sensitive credentials",
         ),
         ContentFilterRule(
             id="owasp_block_xxs_payloads",
             type="content_filter",
             action="block",
             blocked_patterns=[
-                "&lt;script&gt;",
+                "<script>",
                 "javascript:",
                 "onload=",
                 "onerror=",
-                "onclick="
+                "onclick=",
             ],
             compliance_tag="OWASP_A03",
-            description="Block potential XSS payload patterns"
-        )
+            description="Block potential XSS payload patterns",
+        ),
     ]
-})()
+
+
+class OWASPPolicyPack:
+    """OWASP Top 10 rules packaged for reuse."""
+
+    name = "OWASP_Top_10"
+    description = "OWASP Top 10 secure development controls"
+
+    def get_rules(self) -> List[BaseRule]:
+        return list(_owasp_rules())
+
+
+owasp_top_10 = OWASPPolicyPack()
