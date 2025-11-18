@@ -1,18 +1,19 @@
 """GDPR compliance policy pack for European data protection."""
 
-from ..engine import RegexMaskRule, ToolFilterRule, ContentFilterRule
+from typing import List
+
+from ..engine import BaseRule, ContentFilterRule, RegexMaskRule, ToolFilterRule
 
 
-# GDPR Policy Pack
-gdpr_pack = type('GDPRPolicyPack', (), {
-    'get_rules': lambda: [
+def _gdpr_rules() -> List[BaseRule]:
+    return [
         RegexMaskRule(
             id="gdpr_mask_email",
             type="regex_mask",
             pattern="\\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Z|a-z]{2,}\\b",
             action="redact",
             compliance_tag="GDPR_Art_5",
-            description="Mask email addresses"
+            description="Mask email addresses",
         ),
         RegexMaskRule(
             id="gdpr_mask_phone",
@@ -20,7 +21,7 @@ gdpr_pack = type('GDPRPolicyPack', (), {
             pattern="\\b(?:\\+?\\d{1,3}[-.\\s]?)?\\d{1,4}[-.\\s]?\\d{1,4}[-.\\s]?\\d{1,9}\\b",
             action="redact",
             compliance_tag="GDPR_Art_4",
-            description="Mask phone numbers"
+            description="Mask phone numbers",
         ),
         RegexMaskRule(
             id="gdpr_mask_ip_address",
@@ -28,7 +29,7 @@ gdpr_pack = type('GDPRPolicyPack', (), {
             pattern="\\b(?:[0-9]{1,3}\\.){3}[0-9]{1,3}\\b",
             action="redact",
             compliance_tag="GDPR_Recital_30",
-            description="Mask IP addresses"
+            description="Mask IP addresses",
         ),
         ToolFilterRule(
             id="gdpr_block_data_export",
@@ -38,10 +39,10 @@ gdpr_pack = type('GDPRPolicyPack', (), {
                 "export_user_data",
                 "bulk_data_download",
                 "share_personal_data",
-                "transfer_to_third_party"
+                "transfer_to_third_party",
             ],
             compliance_tag="GDPR_Art_44",
-            description="Block unauthorized data export operations"
+            description="Block unauthorized data export operations",
         ),
         ContentFilterRule(
             id="gdpr_block_special_category_data",
@@ -53,10 +54,22 @@ gdpr_pack = type('GDPRPolicyPack', (), {
                 "religious beliefs",
                 "sexual orientation",
                 "health data",
-                "biometric data"
+                "biometric data",
             ],
             compliance_tag="GDPR_Art_9",
-            description="Block special category personal data"
-        )
+            description="Block special category personal data",
+        ),
     ]
-})()
+
+
+class GDPRPolicyPack:
+    """GDPR rules packaged for reuse."""
+
+    name = "GDPR"
+    description = "European data protection controls"
+
+    def get_rules(self) -> List[BaseRule]:
+        return list(_gdpr_rules())
+
+
+gdpr_pack = GDPRPolicyPack()

@@ -1,8 +1,11 @@
-"""YAML configuration loading and schema validation for Sphere AI policies."""
+"""Helpers for loading and validating Sphere AI policy configuration."""
+
+from __future__ import annotations
+
+from pathlib import Path
+from typing import Any, Dict, Optional
 
 import yaml
-from typing import Any, Dict, Optional
-from pathlib import Path
 
 from .engine import PolicyConfig
 from .exceptions import SphereConfigurationError
@@ -22,10 +25,12 @@ def load_config_from_yaml(config_path: str) -> PolicyConfig:
         SphereConfigurationError: If the file is invalid or malformed
         FileNotFoundError: If the file doesn't exist
     """
+    config_file = Path(config_path)
+
     try:
-        with open(config_path, 'r', encoding='utf-8') as f:
+        with config_file.open('r', encoding='utf-8') as f:
             config_data = yaml.safe_load(f)
-        
+
         if not config_data:
             raise SphereConfigurationError("Configuration file is empty")
         
@@ -36,8 +41,13 @@ def load_config_from_yaml(config_path: str) -> PolicyConfig:
         # Convert to PolicyConfig
         return PolicyConfig(**config_data)
         
+    except FileNotFoundError:
+        # Surface the missing file so callers can decide whether it's optional
+        raise
     except yaml.YAMLError as e:
         raise SphereConfigurationError(f"Invalid YAML in configuration file: {e}")
+    except SphereConfigurationError:
+        raise
     except Exception as e:
         raise SphereConfigurationError(f"Failed to load configuration: {e}")
 
@@ -57,17 +67,18 @@ def merge_policies(
         PolicyConfig: Merged configuration
     """
     if file_config and programmatic_config:
-        # Merge security rules from both sources
-        merged_rules = file_config.security_rules + programmatic_config.security_rules
-        
-        # Use programmatic config as base, but keep file version if not specified
-        base_config = programmatic_config.copy()
-        base_config.security_rules = merged_rules
-        
-        if not base_config.compliance_standard and file_config.compliance_standard:
-            base_config.compliance_standard = file_config.compliance_standard
-            
-        return base_config
+        # File configuration takes precedence for top-level metadata while the
+        # rule set is a concatenation (file rules first for deterministic order).
+        return PolicyConfig(
+            version=file_config.version or programmatic_config.version,
+            compliance_standard=(
+                file_config.compliance_standard or programmatic_config.compliance_standard
+            ),
+            security_rules=[
+                *list(file_config.security_rules),
+                *list(programmatic_config.security_rules),
+            ],
+        )
     
     elif file_config:
         return file_config

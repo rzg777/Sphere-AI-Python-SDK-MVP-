@@ -2,9 +2,8 @@
 
 import json
 import sys
-import time
 from datetime import datetime, timezone
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Iterable, Optional
 from dataclasses import dataclass
 
 
@@ -53,14 +52,11 @@ class AuditLogger:
             print(json_line, file=self.output_stream, flush=True)
         except Exception as e:
             # Fallback to prevent logging failures from breaking the application
-            error_log = {
-                "timestamp": self._current_timestamp(),
-                "level": "ERROR",
-                "source": "sphere_sdk",
-                "error": f"Failed to emit audit log: {e}",
-                "original_data": str(log_data)[:200]  # Truncate for safety
-            }
-            print(json.dumps(error_log), file=sys.stderr, flush=True)
+            fallback_message = (
+                f"[{self._current_timestamp()}] sphere_sdk audit logging error: {e}. "
+                f"Original data: {str(log_data)[:200]}"
+            )
+            print(fallback_message, file=sys.stderr, flush=True)
     
     def _current_timestamp(self) -> str:
         """Get current timestamp in ISO format with timezone."""
