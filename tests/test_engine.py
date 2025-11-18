@@ -235,11 +235,8 @@ class TestPolicyEngine:
 
 class TestEvaluationResult:
     """Test EvaluationResult dataclass behavior."""
-    
-    def test_evaluation_result_defaults(self):
-       I'll continue with the remaining test files and complete the implementation:
 
-<dyad-write path="tests/test_engine.py" description="Policy engine unit tests - continued">
+    def test_evaluation_result_defaults(self):
         """Test EvaluationResult has proper defaults."""
         result = EvaluationResult()
         assert result.blocked is False

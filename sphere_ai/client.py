@@ -5,13 +5,29 @@ import time
 from typing import Any, Dict, List, Optional, Union, cast
 from dataclasses import dataclass
 
-from openai import OpenAI
-from openai.types.chat import ChatCompletion, ChatCompletionMessage
-
 from .engine import PolicyEngine, PolicyConfig
 from .logging import AuditLogger
 from .exceptions import SphereSecurityViolation
-from .config import load_config_from_yaml, merge_policies
+
+try:  # Optional dependency: OpenAI SDK
+    from openai import OpenAI
+    from openai.types.chat import ChatCompletion, ChatCompletionMessage
+except ModuleNotFoundError as exc:  # pragma: no cover - triggered in minimal test envs
+    OpenAI = None  # type: ignore[assignment]
+    ChatCompletion = Any  # type: ignore[assignment]
+    ChatCompletionMessage = Any  # type: ignore[assignment]
+    _openai_import_error = exc
+else:  # pragma: no cover - not triggered in CI
+    _openai_import_error = None
+
+try:  # Optional dependency: PyYAML
+    from .config import load_config_from_yaml, merge_policies
+except ModuleNotFoundError as exc:  # pragma: no cover - triggered in minimal test envs
+    load_config_from_yaml = None  # type: ignore[assignment]
+    merge_policies = None  # type: ignore[assignment]
+    _config_import_error = exc
+else:  # pragma: no cover - not triggered in CI
+    _config_import_error = None
 
 
 @dataclass
@@ -54,6 +70,17 @@ class SphereClient:
             policy_engine: Pre-configured policy engine (overrides config)
             enable_audit_logging: Whether to emit audit logs to stdout
         """
+        if OpenAI is None:
+            raise ModuleNotFoundError(
+                "SphereClient requires the optional 'openai' dependency. Install the OpenAI "
+                "Python package to use SphereClient."
+            ) from _openai_import_error
+        if load_config_from_yaml is None or merge_policies is None:
+            raise ModuleNotFoundError(
+                "SphereClient requires the optional 'pyyaml' dependency. Install PyYAML to load "
+                "or merge Sphere policy configurations."
+            ) from _config_import_error
+
         self._openai_client = openai_client
         
         # Initialize policy engine

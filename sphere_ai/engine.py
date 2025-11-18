@@ -1,12 +1,9 @@
 """Policy engine for evaluating security rules against LLM interactions."""
 
 import re
-import time
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional
 from dataclasses import dataclass, field
 from enum import Enum
-
-from pydantic import BaseModel, Field
 
 from .exceptions import SpherePolicyError
 
@@ -44,118 +41,55 @@ class EvaluationResult:
     modified_messages: Optional[List[Dict[str, Any]]] = None
 
 
-class BaseRule(BaseModel):
+@dataclass
+class BaseRule:
     """Base class for all security rules."""
+
     id: str
     type: RuleType
     action: RuleAction
     compliance_tag: Optional[str] = None
     description: Optional[str] = None
 
+    def __post_init__(self) -> None:
+        if isinstance(self.type, str):
+            self.type = RuleType(self.type)
+        if isinstance(self.action, str):
+            self.action = RuleAction(self.action)
 
+
+@dataclass
 class ToolFilterRule(BaseRule):
     """Rule for filtering tool/function calls."""
-    type: RuleType = RuleType.TOOL_FILTER
-    blocked_tools: List[str] = Field(default_factory=list)
+
+    blocked_tools: List[str] = field(default_factory=list)
     allowed_tools: Optional[List[str]] = None
 
 
+@dataclass
 class RegexMaskRule(BaseRule):
     """Rule for masking sensitive patterns using regex."""
-    type: RuleType = RuleType.REGEX_MASK
-    pattern: str
+
+    pattern: str = ""
     replacement: str = "[REDACTED]"
     flags: int = 0
 
 
+@dataclass
 class ContentFilterRule(BaseRule):
     """Rule for content-based filtering."""
-    type: RuleType = RuleType.CONTENT_FILTER
-    blockedI'll continue with the complete implementation of the Sphere AI SDK. Let me finish the engine.py file and create the remaining components.
 
-<dyad-write path="sphere_ai/engine.py" description="Policy engine and rule evaluation system">
-"""Policy engine for evaluating security rules against LLM interactions."""
-
-import re
-import time
-from typing import Any, Dict, List, Optional, Tuple, Union
-from dataclasses import dataclass, field
-from enum import Enum
-
-from pydantic import BaseModel, Field
-
-from .exceptions import SpherePolicyError
-
-
-class RuleAction(str, Enum):
-    """Available actions for security rules."""
-    BLOCK = "block"
-    REDACT = "redact"
-    ALLOW = "allow"
-    LOG = "log"
-
-
-class RuleType(str, Enum):
-    """Types of security rules."""
-    TOOL_FILTER = "tool_filter"
-    REGEX_MASK = "regex_mask"
-    CONTENT_FILTER = "content_filter"
-
-
-@dataclass
-class Violation:
-    """Represents a policy violation."""
-    rule_id: str
-    trigger: str
-    type: str
-    compliance_tag: Optional[str] = None
-    details: Optional[Dict[str, Any]] = None
-
-
-@dataclass
-class EvaluationResult:
-    """Result of policy evaluation."""
-    blocked: bool = False
-    violations: List[Violation] = field(default_factory=list)
-    modified_messages: Optional[List[Dict[str, Any]]] = None
-
-
-class BaseRule(BaseModel):
-    """Base class for all security rules."""
-    id: str
-    type: RuleType
-    action: RuleAction
-    compliance_tag: Optional[str] = None
-    description: Optional[str] = None
-
-
-class ToolFilterRule(BaseRule):
-    """Rule for filtering tool/function calls."""
-    type: RuleType = RuleType.TOOL_FILTER
-    blocked_tools: List[str] = Field(default_factory=list)
-    allowed_tools: Optional[List[str]] = None
-
-
-class RegexMaskRule(BaseRule):
-    """Rule for masking sensitive patterns using regex."""
-    type: RuleType = RuleType.REGEX_MASK
-    pattern: str
-    replacement: str = "[REDACTED]"
-    flags: int = 0
-
-
-class ContentFilterRule(BaseRule):
-    """Rule for content-based filtering."""
-    type: RuleType = RuleType.CONTENT_FILTER
-    blocked_patterns: List[str] = Field(default_factory=list)
+    blocked_patterns: List[str] = field(default_factory=list)
     severity_threshold: Optional[str] = None
 
 
-class PolicyConfig(BaseModel):
+@dataclass
+class PolicyConfig:
     """Configuration for the policy engine."""
+
     version: str = "1.0"
     compliance_standard: Optional[str] = None
-    security_rules: List[Dict[str, Any]] = Field(default_factory=list)
+    security_rules: List[Dict[str, Any]] = field(default_factory=list)
 
 
 class PolicyEngine:
@@ -232,10 +166,12 @@ class PolicyEngine:
         
         for rule in self.rules:
             rule_result = self._evaluate_rule_pre_flight(rule, context, modified_messages)
-            
+
+            if rule_result.violations:
+                result.violations.extend(rule_result.violations)
+
             if rule_result.blocked:
                 result.blocked = True
-                result.violations.extend(rule_result.violations)
                 # Early termination for blocking rules
                 if rule.action == RuleAction.BLOCK:
                     return result
@@ -263,10 +199,12 @@ class PolicyEngine:
         
         for rule in self.rules:
             rule_result = self._evaluate_rule_post_flight(rule, context, response)
-            
+
+            if rule_result.violations:
+                result.violations.extend(rule_result.violations)
+
             if rule_result.blocked:
                 result.blocked = True
-                result.violations.extend(rule_result.violations)
                 # Early termination for blocking rules
                 if rule.action == RuleAction.BLOCK:
                     return result
