@@ -1,160 +1,135 @@
-import { jwtDecode } from 'jwt-decode';
-
-export interface User {
-  id: string;
-  email: string;
-  name: string;
-  role: 'user' | 'admin';
-}
-
-export interface AuthTokens {
-  accessToken: string;
-  refreshToken: string;
-}
-
-export interface DecodedToken {
-  sub: string;
-  email: string;
-  name: string;
-  role: string;
-  exp: number;
-}
+import { demoAuthServer } from './demoAuthServer';
+import { AdminSummary, AuthTokens, User } from './auth.types';
 
 class AuthService {
   private readonly ACCESS_TOKEN_KEY = 'access_token';
-  private readonly REFRESH_TOKEN_KEY = 'refresh_token';
+  private accessToken: string | null = null;
+  private refreshToken: string | null = null;
+  private currentUser: User | null = null;
 
-  // Mock user database - in a real app, this would be an API
-  private mockUsers = [
-    {
-      id: '1',
-      email: 'user@example.com',
-      password: 'password123',
-      name: 'Demo User',
-      role: 'user' as const
-    },
-    {
-      id: '2',
-      email: 'admin@example.com',
-      password: 'admin123',
-      name: 'Admin User',
-      role: 'admin' as const
+  constructor() {
+    if (typeof window !== 'undefined') {
+      this.accessToken = window.localStorage.getItem(this.ACCESS_TOKEN_KEY);
     }
-  ];
-
-  // Generate a simple JWT-like token (in real app, use proper JWT from backend)
-  private generateToken(user: any): string {
-    const payload = {
-      sub: user.id,
-      email: user.email,
-      name: user.name,
-      role: user.role,
-      exp: Math.floor(Date.now() / 1000) + (60 * 60) // 1 hour expiry
-    };
-    return btoa(JSON.stringify(payload)); // Simple base64 encoding for demo
   }
 
-  async login(email: string, password: string): Promise<AuthTokens> {
-    // Simulate API call delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
-
-    const user = this.mockUsers.find(u => u.email === email && u.password === password);
-    
-    if (!user) {
-      throw new Error('Invalid email or password');
+  private persistAccessToken(token: string | null) {
+    if (typeof window === 'undefined') {
+      return;
     }
-
-    const accessToken = this.generateToken(user);
-    const refreshToken = this.generateToken({ ...user, isRefresh: true });
-
-    localStorage.setItem(this.ACCESS_TOKEN_KEY, accessToken);
-    localStorage.setItem(this.REFRESH_TOKEN_KEY, refreshToken);
-
-    return { accessToken, refreshToken };
+    if (token) {
+      window.localStorage.setItem(this.ACCESS_TOKEN_KEY, token);
+    } else {
+      window.localStorage.removeItem(this.ACCESS_TOKEN_KEY);
+    }
   }
 
-  logout(): void {
-    localStorage.removeItem(this.ACCESS_TOKEN_KEY);
-    localStorage.removeItem(this.REFRESH_TOKEN_KEY);
+  private setSession(tokens: AuthTokens, user?: User) {
+    this.accessToken = tokens.accessToken;
+    this.refreshToken = tokens.refreshToken;
+    this.persistAccessToken(tokens.accessToken);
+    if (user) {
+      this.currentUser = user;
+    }
+  }
+
+  getCachedUser(): User | null {
+    return this.currentUser;
   }
 
   getAccessToken(): string | null {
-    return localStorage.getItem(this.ACCESS_TOKEN_KEY);
+    return this.accessToken;
   }
 
   getRefreshToken(): string | null {
-    return localStorage.getItem(this.REFRESH_TOKEN_KEY);
+    return this.refreshToken;
   }
 
-  isAuthenticated(): boolean {
-    const token = this.getAccessToken();
-    if (!token) return false;
+  async login(email: string, password: string): Promise<AuthTokens> {
+    const response = await demoAuthServer.login(email, password);
+    this.setSession({ accessToken: response.accessToken, refreshToken: response.refreshToken }, response.user);
+    return { accessToken: response.accessToken, refreshToken: response.refreshToken };
+  }
 
+  async logout(): Promise<void> {
+    await demoAuthServer.revokeSession(this.refreshToken);
+    this.accessToken = null;
+    this.refreshToken = null;
+    this.currentUser = null;
+    this.persistAccessToken(null);
+  }
+
+  async getProfile(force = false): Promise<User | null> {
+    if (!force && this.currentUser) {
+      return this.currentUser;
+    }
+    if (!this.accessToken) {
+      return null;
+    }
     try {
-      const decoded = this.decodeToken(token);
-      return decoded.exp > Math.floor(Date.now() / 1000);
+      const profile = await demoAuthServer.getProfile(this.accessToken);
+      this.currentUser = profile;
+      return profile;
+    } catch (error) {
+      const refreshed = await this.tryRefreshTokens();
+      if (!refreshed) {
+        return null;
+      }
+      const profile = await demoAuthServer.getProfile(this.accessToken!);
+      this.currentUser = profile;
+      return profile;
+    }
+  }
+
+  private async tryRefreshTokens(): Promise<boolean> {
+    if (!this.refreshToken) {
+      await this.logout();
+      return false;
+    }
+    try {
+      const tokens = await demoAuthServer.refreshSession(this.refreshToken);
+      this.setSession(tokens);
+      return true;
     } catch {
+      await this.logout();
       return false;
     }
   }
 
-  decodeToken(token: string): DecodedToken {
-    try {
-      return JSON.parse(atob(token)) as DecodedToken;
-    } catch {
-      throw new Error('Invalid token');
-    }
-  }
-
-  getCurrentUser(): User | null {
-    const token = this.getAccessToken();
-    if (!token) return null;
-
-    try {
-      const decoded = this.decodeToken(token);
-      return {
-        id: decoded.sub,
-        email: decoded.email,
-        name: decoded.name,
-        role: decoded.role as 'user' | 'admin'
-      };
-    } catch {
-      return null;
-    }
-  }
-
-  hasRole(role: string): boolean {
-    const user = this.getCurrentUser();
-    return user?.role === role;
-  }
-
-  // Mock token refresh - in real app, call your refresh endpoint
   async refreshTokens(): Promise<AuthTokens> {
-    const refreshToken = this.getRefreshToken();
-    if (!refreshToken) {
+    if (!this.refreshToken) {
       throw new Error('No refresh token available');
     }
+    const tokens = await demoAuthServer.refreshSession(this.refreshToken);
+    this.setSession(tokens);
+    return tokens;
+  }
 
+  async isAuthenticated(): Promise<boolean> {
+    const profile = await this.getProfile();
+    return Boolean(profile);
+  }
+
+  async hasRole(role: User['role']): Promise<boolean> {
+    const profile = await this.getProfile();
+    return profile?.role === role;
+  }
+
+  async getAdminSummary(): Promise<AdminSummary | null> {
+    if (!this.accessToken) {
+      return null;
+    }
     try {
-      const decoded = this.decodeToken(refreshToken);
-      const user = this.mockUsers.find(u => u.id === decoded.sub);
-      
-      if (!user) {
-        throw new Error('User not found');
+      return await demoAuthServer.getAdminSummary(this.accessToken);
+    } catch (error) {
+      const refreshed = await this.tryRefreshTokens();
+      if (!refreshed || !this.accessToken) {
+        return null;
       }
-
-      const newAccessToken = this.generateToken(user);
-      localStorage.setItem(this.ACCESS_TOKEN_KEY, newAccessToken);
-
-      return {
-        accessToken: newAccessToken,
-        refreshToken
-      };
-    } catch {
-      this.logout();
-      throw new Error('Token refresh failed');
+      return demoAuthServer.getAdminSummary(this.accessToken);
     }
   }
 }
 
 export const authService = new AuthService();
+export type { User, AuthTokens, AdminSummary } from './auth.types';
